@@ -1,0 +1,111 @@
+Scenario-1:
+--Write a PL/SQL block using an explicit cursor GenerateMonthlyStatements that retrieves all transactions for the current month and
+--prints a statement for each customer.
+
+DECLARE
+  CURSOR GenerateMonthlyStatements IS
+    SELECT CustomerID, AccountID, Amount, TransactionType, TransactionDate
+    FROM Transactions
+    WHERE TransactionDate BETWEEN TRUNC(SYSDATE, 'MM') AND LAST_DAY(SYSDATE)
+    ORDER BY CustomerID;
+  
+  v_CustomerID Transactions.CustomerID%TYPE;
+  v_AccountID Transactions.AccountID%TYPE;
+  v_Amount Transactions.Amount%TYPE;
+  v_TransactionType Transactions.TransactionType%TYPE;
+  v_TransactionDate Transactions.TransactionDate%TYPE;
+  v_LastCustomerID Transactions.CustomerID%TYPE := NULL;
+BEGIN
+  DBMS_OUTPUT.ENABLE(1000000);
+  OPEN GenerateMonthlyStatements;
+  LOOP
+    FETCH GenerateMonthlyStatements INTO v_CustomerID, v_AccountID, v_Amount, v_TransactionType, v_TransactionDate;
+    EXIT WHEN GenerateMonthlyStatements%NOTFOUND;
+    
+    IF v_LastCustomerID IS NULL OR v_LastCustomerID != v_CustomerID THEN
+      IF v_LastCustomerID IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE('----------------------------------------');
+      END IF;
+      DBMS_OUTPUT.PUT_LINE('Monthly Statement for Customer ID: ' || v_CustomerID);
+      v_LastCustomerID := v_CustomerID;
+    END IF;
+    
+    DBMS_OUTPUT.PUT_LINE('  Account: ' || v_AccountID ||
+                         ' | Date: ' || TO_CHAR(v_TransactionDate, 'YYYY-MM-DD') ||
+                         ' | Amount: ' || TO_CHAR(v_Amount, '999,990.00') ||
+                         ' | Type: ' || v_TransactionType);
+  END LOOP;
+  CLOSE GenerateMonthlyStatements;
+  IF v_LastCustomerID IS NOT NULL THEN
+    DBMS_OUTPUT.PUT_LINE('----------------------------------------');
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+END;
+/
+
+Scenario-2:
+--Write a PL/SQL block using an explicit cursor ApplyAnnualFee that deducts an annual maintenance fee from the balance of all accounts.
+
+DECLARE
+  CURSOR ApplyAnnualFee IS
+    SELECT AccountID, Balance
+    FROM Accounts;
+  
+  v_AccountID Accounts.AccountID%TYPE;
+  v_Balance Accounts.Balance%TYPE;
+BEGIN
+  OPEN ApplyAnnualFee;
+  LOOP
+    FETCH ApplyAnnualFee INTO v_AccountID, v_Balance;
+    EXIT WHEN ApplyAnnualFee%NOTFOUND;
+    
+    UPDATE Accounts
+    SET Balance = Balance - 50,
+        LastModified = SYSDATE
+    WHERE AccountID = v_AccountID;
+  END LOOP;
+  CLOSE ApplyAnnualFee;
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+    ROLLBACK;
+    IF ApplyAnnualFee%ISOPEN THEN
+      CLOSE ApplyAnnualFee;
+    END IF;
+END;
+/
+
+Scenario-3:
+--Write a PL/SQL block using an explicit cursor UpdateLoanInterestRates that fetches all loans and updates their interest rates based on the new policy.
+
+DECLARE
+  CURSOR UpdateLoanInterestRates IS
+    SELECT LoanID, InterestRate
+    FROM Loans;
+  
+  v_LoanID Loans.LoanID%TYPE;
+  v_InterestRate Loans.InterestRate%TYPE;
+BEGIN
+  OPEN UpdateLoanInterestRates;
+  LOOP
+    FETCH UpdateLoanInterestRates INTO v_LoanID, v_InterestRate;
+    EXIT WHEN UpdateLoanInterestRates%NOTFOUND;
+    
+    UPDATE Loans
+    SET InterestRate = v_InterestRate * 1.05
+    WHERE LoanID = v_LoanID;
+  END LOOP;
+  CLOSE UpdateLoanInterestRates;
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+    ROLLBACK;
+    IF UpdateLoanInterestRates%ISOPEN THEN
+      CLOSE UpdateLoanInterestRates;
+    END IF;
+END;
+/
